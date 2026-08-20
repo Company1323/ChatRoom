@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+    >
+    <title>Nova Meet | Real-Time Video Chat</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+</head>
+
+<body>
+
+    <!-- Background -->
+    <div class="background-glow glow-one"></div>
+    <div class="background-glow glow-two"></div>
+    <div class="background-grid"></div>
+
+    <!-- =========================================================
+         APP
+    ========================================================== -->
+    <div class="app-shell">
+
+        <!-- =====================================================
+             HEADER
+        ====================================================== -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-video"></i>
+                </div>
+
+                <div>
+                    <h1>Nova<span>Meet</span></h1>
+                    <p>REAL-TIME VIDEO ROOM</p>
+                </div>
+            </div>
+
+            <div class="header-status">
+
+                <div class="status-box">
+                    <span class="status-dot offline" id="serverStatusDot"></span>
+
+                    <div>
+                        <span class="status-label">SERVER</span>
+                        <strong id="serverStatus">SERVER OFFLINE</strong>
+                    </div>
+                </div>
+
+                <div class="status-box">
+                    <span class="status-dot waiting" id="webrtcStatusDot"></span>
+
+                    <div>
+                        <span class="status-label">WEBRTC</span>
+                        <strong id="webrtcStatus">WEBRTC WAITING</strong>
+                    </div>
+                </div>
+
+                <div class="status-box network-status">
+                    <i class="fa-solid fa-signal" id="networkIcon"></i>
+
+                    <div>
+                        <span class="status-label">NETWORK</span>
+                        <strong id="networkQuality">WAITING</strong>
+                    </div>
+
+                    <span id="pingValue">PING -- ms</span>
+                </div>
+
+                <div class="user-count-box">
+                    <i class="fa-solid fa-users"></i>
+                    <strong id="userCount">0 / 3 USERS</strong>
+                </div>
+
+            </div>
+        </header>
+
+
+        <!-- =====================================================
+             JOIN PANEL
+        ====================================================== -->
+<section class="join-panel active" id="joinPanel">
+
+            <div class="join-card">
+
+                <div class="join-logo">
+                    <i class="fa-solid fa-satellite-dish"></i>
+                </div>
+
+                <h2>Join the Room</h2>
+
+                <p>
+                    Enter your name to connect your camera and microphone
+                    to the real-time room.
+                </p>
+
+                <div class="input-group">
+                    <i class="fa-solid fa-user"></i>
+
+                    <input
+                        type="text"
+                        id="usernameInput"
+                        maxlength="20"
+                        placeholder="Your name"
+                        autocomplete="name"
+                    >
+
+                    <span id="nameCounter">0 / 20</span>
+                </div>
+
+                <p class="join-error" id="joinError"></p>
+
+                <button
+                    type="button"
+                    class="primary-button"
+                    id="joinButton"
+                >
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                    <span>JOIN ROOM</span>
+                </button>
+
+                <div class="permission-note">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    Camera and microphone permission will be requested.
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             MAIN APPLICATION
+        ====================================================== -->
+        <main class="main-layout" id="mainLayout">
+
+            <!-- =================================================
+                 VIDEO AREA
+            ================================================== -->
+            <section class="video-section">
+
+                <div class="section-heading">
+
+                    <div>
+                        <p class="eyebrow">LIVE ROOM</p>
+                        <h2>Video Conference</h2>
+                    </div>
+
+                    <div class="video-summary">
+                        <span class="pulse-dot"></span>
+                        <span id="roomSummary">Waiting to join</span>
+                    </div>
+
+                </div>
+
+
+                <!-- Empty state -->
+                <div class="empty-room" id="emptyRoom">
+
+                    <div class="empty-icon">
+                        <i class="fa-solid fa-video"></i>
+                    </div>
+
+                    <h3>Your room is ready</h3>
+
+                    <p>
+                        Enter your name and join the room to start your
+                        camera, microphone and real-time connection.
+                    </p>
+
+                </div>
+
+
+                <!-- Video grid -->
+                <div
+                    class="video-grid"
+                    id="videoGrid"
+                    aria-live="polite"
+                ></div>
+
+            </section>
+
+
+            <!-- =================================================
+                 CHAT PANEL
+            ================================================== -->
+            <aside class="chat-panel">
+
+                <div class="chat-header">
+
+                    <div>
+                        <p class="eyebrow">REAL-TIME</p>
+                        <h2>
+                            <i class="fa-solid fa-comments"></i>
+                            Room Chat
+                        </h2>
+                    </div>
+
+                    <span class="chat-live">
+                        <span></span>
+                        LIVE
+                    </span>
+
+                </div>
+
+
+                <div
+                    class="chat-messages"
+                    id="chatMessages"
+                >
+                    <div class="chat-system-message">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>Welcome. Join the room to start chatting.</span>
+                    </div>
+                </div>
+
+
+                <div class="chat-input-area">
+
+                    <input
+                        type="text"
+                        id="chatInput"
+                        maxlength="500"
+                        placeholder="Join the room to chat..."
+                        disabled
+                    >
+
+                    <button
+                        type="button"
+                        id="sendButton"
+                        disabled
+                        aria-label="Send message"
+                    >
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+
+                </div>
+
+            </aside>
+
+        </main>
+
+
+        <!-- =====================================================
+             CONTROL BAR
+        ====================================================== -->
+        <footer class="control-bar">
+
+            <button
+                type="button"
+                class="control-button"
+                id="muteButton"
+                disabled
+            >
+                <i class="fa-solid fa-microphone"></i>
+                <span>MUTE</span>
+            </button>
+
+
+            <button
+                type="button"
+                class="control-button"
+                id="cameraButton"
+                disabled
+            >
+                <i class="fa-solid fa-video"></i>
+                <span>CAMERA OFF</span>
+            </button>
+
+
+            <button
+                type="button"
+                class="control-button share-button"
+                id="screenButton"
+                disabled
+            >
+                <i class="fa-solid fa-display"></i>
+                <span>SHARE SCREEN</span>
+            </button>
+
+
+            <div class="control-divider"></div>
+
+
+            <button
+                type="button"
+                class="control-button join-control"
+                id="bottomJoinButton"
+            >
+                <i class="fa-solid fa-right-to-bracket"></i>
+                <span>JOIN ROOM</span>
+            </button>
+
+
+            <button
+                type="button"
+                class="control-button leave-button"
+                id="leaveButton"
+                disabled
+            >
+                <i class="fa-solid fa-phone-slash"></i>
+                <span>LEAVE ROOM</span>
+            </button>
+
+        </footer>
+
+    </div>
+
+
+    <!-- =========================================================
+         MAXIMIZE MODAL
+    ========================================================== -->
+    <div
+        class="maximize-modal"
+        id="maximizeModal"
+        aria-hidden="true"
+    >
+
+        <div class="maximize-backdrop" id="maximizeBackdrop"></div>
+
+        <div class="maximize-content">
+
+          <!--  <div class="maximize-header">
+
+                <div>
+                    <span class="maximize-type" id="maximizeType">
+                        VIDEO
+                    </span>
+
+                    <h2 id="maximizeTitle">Video</h2>
+                </div>
+
+                <button
+                    type="button"
+                    class="close-maximize"
+                    id="closeMaximize"
+                    aria-label="Close maximized video"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+
+            </div>-->
+
+
+            <div class="maximize-video-wrap">
+                <video
+                    id="maximizeVideo"
+                    autoplay
+                    playsinline
+                ></video>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         TOASTS
+    ========================================================== -->
+    <div class="toast-container" id="toastContainer"></div>
+
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>
