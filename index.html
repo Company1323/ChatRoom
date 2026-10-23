@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <title>هم‌صدا | اتاق گفت‌وگوی صوتی</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <section id="joinScreen" class="join-screen">
+    <form id="joinForm" class="join-card">
+      <div class="logo">ه</div>
+      <p class="eyebrow">گفت‌وگوی صوتی آنلاین</p>
+      <h1>به هم‌صدا خوش آمدی</h1>
+      <p class="muted">نام و کد اتاق را وارد کن تا به گفت‌وگو بپیوندی.</p>
+
+      <label for="username">نام نمایشی</label>
+      <input id="username" maxlength="32" autocomplete="nickname" placeholder="مثلاً علی" required>
+
+      <label for="roomCode">کد اتاق</label>
+      <input id="roomCode" maxlength="20" autocomplete="off" placeholder="مثلاً MAN-4821" required>
+
+      <div class="room-hints">
+        <span>اتاق اول: MAN-4821</span>
+      </div>
+
+      <button class="primary" type="submit">ورود به اتاق</button>
+      <p class="privacy-note">با ورود، مرورگر برای استفاده از میکروفون اجازه می‌خواهد.</p>
+    </form>
+  </section>
+
+  <main id="app" class="app hidden">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo small">ه</div>
+        <div>
+          <strong>هم‌صدا</strong>
+          <span>اتاق گفت‌وگوی صوتی</span>
+        </div>
+      </div>
+
+      <div class="room-info">
+        <span class="live-dot"></span>
+        <span>اتاق:</span>
+        <strong id="roomLabel">اتاق اول</strong>
+      </div>
+
+      <button id="leaveButton" class="leave-button" type="button">خروج از اتاق</button>
+    </header>
+
+    <div class="workspace">
+      <section class="meeting">
+        <div class="meeting-heading">
+          <div>
+            <p class="eyebrow">فضای مشترک</p>
+            <h2>گفت‌وگوی صوتی</h2>
+          </div>
+          <div class="participant-badge">
+            <span>●</span>
+            <b id="participantCount">1</b> نفر حاضر
+          </div>
+        </div>
+
+        <div class="audio-status-card">
+          <div class="sound-orb"><span>♫</span></div>
+          <h3 id="localName">کاربر</h3>
+          <p id="statusMessage" class="status-message">در حال اتصال...</p>
+          <div id="peopleList" class="people-list"></div>
+        </div>
+
+        <div class="controls">
+          <button id="micButton" class="control-button" type="button">
+            <span class="control-icon">🎙</span>
+            <span id="micText">خاموش کردن میکروفون</span>
+          </button>
+          <button id="endButton" class="control-button end-button" type="button">
+            <span class="control-icon">☎</span>
+            <span>ترک جلسه</span>
+          </button>
+        </div>
+
+        <p class="privacy-note">این نسخه فقط صدا دارد؛ دوربین و اشتراک صفحه فعال نیستند.</p>
+      </section>
+
+      <aside class="side-panel">
+        <div class="tabs">
+          <button class="tab active" type="button" data-panel="peoplePanel">
+            افراد <span id="tabCount">1</span>
+          </button>
+          <button class="tab" type="button" data-panel="chatPanel">گفت‌وگو</button>
+        </div>
+
+        <section id="peoplePanel" class="panel">
+          <div class="panel-heading">
+            <h3>افراد حاضر</h3>
+            <span id="peopleCount" class="count">1</span>
+          </div>
+          <div id="peopleListMirror" class="people-list"></div>
+        </section>
+
+        <section id="chatPanel" class="panel hidden">
+          <div class="panel-heading">
+            <h3>گفت‌وگوی اتاق</h3>
+            <span class="online-label">آنلاین</span>
+          </div>
+
+          <div id="messages" class="messages">
+            <div class="welcome-message">
+              <div class="welcome-icon">✦</div>
+              <strong>به گفت‌وگو خوش آمدی</strong>
+              <p>پیام‌ها برای اعضای همین اتاق ارسال می‌شوند.</p>
+            </div>
+          </div>
+
+          <form id="chatForm" class="chat-form">
+            <input id="messageInput" maxlength="1000" placeholder="پیامت را بنویس..." autocomplete="off">
+            <button type="submit" aria-label="ارسال پیام">➤</button>
+          </form>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="remoteAudios" class="remote-audios" aria-hidden="true"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
