@@ -1,25 +1,37 @@
 
+"use strict";
+
 const socket = io();
 
-const $ = (...ids) => {
-  for (const id of ids) {
-    const element = document.getElementById(id);
-    if (element) return element;
-  }
-  return null;
-};
+const $ = (id) => document.getElementById(id);
 
+const joinScreen = $("joinScreen");
 const joinForm = $("joinForm");
 const usernameInput = $("username");
-const roomInput = $("roomName", "roomCode", "accessCode");
+const roomCodeInput = $("roomCode");
 const app = $("app");
-const chatContainer = $("chat", "messages");
-const peopleContainer = $("people", "participants");
-const chatForm = $("chatForm", "messageForm");
-const messageInput = $("messageInput", "message", "chatInput");
-const micButton = $("micButton", "toggleMic", "micToggle");
-const leaveButton = $("leaveButton", "leaveRoom", "leaveBtn");
-const statusElement = $("voiceStatus", "connectionStatus", "status");
+
+const roomLabel = $("roomLabel");
+const localName = $("localName");
+const statusMessage = $("statusMessage");
+
+const participantCount = $("participantCount");
+const tabCount = $("tabCount");
+const peopleCount = $("peopleCount");
+const peopleList = $("peopleList");
+const peopleListMirror = $("peopleListMirror");
+
+const messages = $("messages");
+const chatForm = $("chatForm");
+const messageInput = $("messageInput");
+
+const micButton = $("micButton");
+const micText = $("micText");
+const leaveButton = $("leaveButton");
+const endButton = $("endButton");
+
+const toastElement = $("toast");
+const remoteAudios = $("remoteAudios");
 
 const RTC_CONFIG = {
   iceServers: [
@@ -32,73 +44,117 @@ const RTC_CONFIG = {
 let joined = false;
 let localStream = null;
 let microphoneEnabled = true;
-let currentUsername = "";
+let currentName = "";
 let currentRoomCode = "";
+let latestParticipants = [];
+let toastTimeout = null;
 
 const peerConnections = new Map();
 const pendingCandidates = new Map();
 const pendingOffers = new Map();
 const remoteAudioElements = new Map();
-const participantNames = new Map();
 
-function setStatus(message) {
-  if (statusElement) {
-    statusElement.textContent = message;
+function setStatus(text) {
+  if (statusMessage) {
+    statusMessage.textContent = text;
   }
-  console.log("[Voice]", message);
+  console.log("[هم‌صدا]", text);
 }
 
-function showApp(show) {
-  if (app) app.hidden = !show;
-  if (joinForm) joinForm.hidden = show;
+function showToast(text) {
+  if (!toastElement) return;
+
+  toastElement.textContent = text;
+  toastElement.classList.add("show");
+
+  if (toastTimeout) clearTimeout(toastTimeout);
+
+  toastTimeout = setTimeout(() => {
+    toastElement.classList.remove("show");
+  }, 3000);
 }
 
-function addMessage(message, type = "system") {
-  if (!chatContainer) {
-    console.log(`[${type}]`, message);
-    return;
-  }
+function showMeeting() {
+  joinScreen?.classList.add("hidden");
+  app?.classList.remove("hidden");
+}
+
+function showJoinScreen() {
+  app?.classList.add("hidden");
+  joinScreen?.classList.remove("hidden");
+}
+
+function addMessage(text, type = "system", name = "") {
+  if (!messages) return;
+
+  // پیام خوشامدگویی اولیه را هنگام دریافت اولین پیام واقعی حذف کن.
+  const welcome = messages.querySelector(".welcome-message");
+  if (welcome) welcome.remove();
 
   const item = document.createElement("div");
   item.className = `message message-${type}`;
-  item.textContent = message;
-  chatContainer.appendChild(item);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+
+  if (name) {
+    const author = document.createElement("strong");
+    author.className = "message-author";
+    author.textContent = name;
+    item.appendChild(author);
+  }
+
+  const content = document.createElement("div");
+  content.className = "message-text";
+  content.textContent = text;
+  item.appendChild(content);
+
+  messages.appendChild(item);
+  messages.scrollTop = messages.scrollHeight;
 }
 
-function getParticipantName(id) {
-  return participantNames.get(id) || "کاربر";
+function updateParticipantCounts(count) {
+  if (participantCount) participantCount.textContent = String(count);
+  if (tabCount) tabCount.textContent = String(count);
+  if (peopleCount) peopleCount.textContent = String(count);
 }
 
 function renderParticipants(participants) {
   if (!Array.isArray(participants)) return;
 
-  participantNames.clear();
+  latestParticipants = participants;
 
-  for (const person of participants) {
-    if (person?.id) {
-      participantNames.set(
-        person.id,
-        person.username || person.name || "کاربر"
-      );
-    }
-  }
+  const renderList = (container) => {
+    if (!container) return;
 
-  if (peopleContainer) {
-    peopleContainer.replaceChildren();
+    container.replaceChildren();
 
     for (const person of participants) {
       const item = document.createElement("div");
-      item.className = "participant";
+      item.className = "participant-item";
 
-      const name = person.username || person.name || "کاربر";
-      item.textContent = person.id === socket.id
-        ? `${name} (شما)`
-        : name;
+      const avatar = document.createElement("div");
+      avatar.className = "participant-avatar";
+      avatar.textContent = (person.name || "ک").trim().charAt(0) || "ک";
 
-      peopleContainer.appendChild(item);
+      const details = document.createElement("div");
+      details.className = "participant-details";
+
+      const name = document.createElement("strong");
+      name.textContent = person.name || "کاربر";
+
+      const label = document.createElement("span");
+      label.textContent =
+        person.id === socket.id ? "شما" : "عضو اتاق";
+
+      details.append(name, label);
+      item.append(avatar, details);
+
+      container.appendChild(item);
     }
-  }
+  };
+
+  renderList(peopleList);
+  renderList(peopleListMirror);
+
+  updateParticipantCounts(participants.length);
 
   reconcilePeers(participants);
 }
@@ -108,7 +164,7 @@ async function startMicrophone() {
 
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error(
-      "مرورگر به میکروفون دسترسی ندارد. از HTTPS یا localhost استفاده کن."
+      "دسترسی به میکروفون در این مرورگر ممکن نیست."
     );
   }
 
@@ -125,20 +181,37 @@ async function startMicrophone() {
     track.enabled = microphoneEnabled;
   }
 
-  if (micButton) {
-    micButton.disabled = false;
-    micButton.textContent = microphoneEnabled
+  if (micButton) micButton.disabled = false;
+
+  updateMicButton();
+
+  // اگر offer قبل از آماده‌شدن میکروفون رسیده باشد، اکنون پردازش می‌شود.
+  await processPendingOffers();
+
+  // ممکن است فهرست کاربران قبل از آماده‌شدن میکروفون رسیده باشد.
+  await reconcilePeers(latestParticipants);
+
+  return localStream;
+}
+
+function updateMicButton() {
+  if (micText) {
+    micText.textContent = microphoneEnabled
       ? "خاموش کردن میکروفون"
       : "روشن کردن میکروفون";
   }
 
-  await processPendingOffers();
-  return localStream;
+  if (micButton) {
+    micButton.classList.toggle("muted", !microphoneEnabled);
+  }
 }
 
 function createPeerConnection(peerId) {
   const existing = peerConnections.get(peerId);
-  if (existing) return existing;
+
+  if (existing && existing.connectionState !== "closed") {
+    return existing;
+  }
 
   const pc = new RTCPeerConnection(RTC_CONFIG);
   peerConnections.set(peerId, pc);
@@ -165,71 +238,52 @@ function createPeerConnection(peerId) {
       audio = document.createElement("audio");
       audio.autoplay = true;
       audio.playsInline = true;
+      audio.controls = false;
       audio.dataset.peerId = peerId;
 
-      // این سایت فقط صدای کاربران را پخش می‌کند.
-      audio.style.display = "none";
+      remoteAudios?.appendChild(audio);
 
-      document.body.appendChild(audio);
+      if (!remoteAudios) {
+        document.body.appendChild(audio);
+      }
+
       remoteAudioElements.set(peerId, audio);
     }
 
-    if (event.streams && event.streams[0]) {
+    if (event.streams?.[0]) {
       audio.srcObject = event.streams[0];
-    } else {
-      let stream = audio.srcObject;
-
-      if (!(stream instanceof MediaStream)) {
-        stream = new MediaStream();
-        audio.srcObject = stream;
-      }
-
-      if (!stream.getTracks().some(
-        track => track.id === event.track.id
-      )) {
-        stream.addTrack(event.track);
-      }
     }
 
     audio.play().catch((error) => {
-      console.warn(
-        "پخش خودکار صدا انجام نشد؛ صفحه را بررسی کن:",
-        error
-      );
-      setStatus("برای شنیدن صدا، پخش صوت را در مرورگر فعال کن.");
+      console.warn("پخش صدای دریافتی ناموفق بود:", error);
+      setStatus("برای پخش صدا، صفحه را لمس یا روی آن کلیک کن.");
     });
   };
 
   pc.onconnectionstatechange = () => {
     console.log(
-      "Peer connection:",
+      "[WebRTC]",
       peerId,
+      "connection:",
       pc.connectionState,
+      "ICE:",
       pc.iceConnectionState
     );
 
     if (pc.connectionState === "connected") {
-      setStatus("اتصال صوتی برقرار شد.");
+      setStatus("اتصال صوتی برقرار است.");
     } else if (pc.connectionState === "failed") {
       setStatus(
-        "اتصال صوتی ناموفق است؛ احتمالاً به تنظیم TURN نیاز است."
+        "اتصال صوتی ناموفق بود؛ احتمال نیاز به سرور TURN وجود دارد."
       );
     } else if (pc.connectionState === "disconnected") {
-      setStatus("اتصال صوتی قطع شده یا ناپایدار است.");
+      setStatus("اتصال صوتی ناپایدار یا قطع شده است.");
     }
-  };
-
-  pc.oniceconnectionstatechange = () => {
-    console.log(
-      "ICE:",
-      peerId,
-      pc.iceConnectionState
-    );
   };
 
   pc.onicecandidateerror = (event) => {
     console.warn(
-      "ICE candidate error:",
+      "[ICE Error]",
       event.errorCode,
       event.errorText
     );
@@ -243,22 +297,27 @@ async function reconcilePeers(participants) {
     return;
   }
 
+  const participantIds = new Set(
+    participants.map((person) => person.id)
+  );
+
+  // اتصال کاربرانی که از اتاق خارج شده‌اند پاک شود.
+  for (const peerId of [...peerConnections.keys()]) {
+    if (!participantIds.has(peerId)) {
+      removePeer(peerId);
+    }
+  }
+
   for (const person of participants) {
     if (!person?.id || person.id === socket.id) continue;
 
     let pc = peerConnections.get(person.id);
 
-    if (pc && pc.connectionState === "closed") {
-      removePeer(person.id);
-      pc = null;
-    }
-
-    if (!pc) {
+    if (!pc || pc.connectionState === "closed") {
       pc = createPeerConnection(person.id);
     }
 
-    // فقط یکی از دو کاربر پیشنهاد اتصال را ایجاد می‌کند.
-    // این کار از ایجاد هم‌زمان دو offer جلوگیری می‌کند.
+    // فقط یک سمت اتصال offer می‌سازد تا از برخورد offerها جلوگیری شود.
     if (
       socket.id.localeCompare(person.id) > 0 &&
       pc.signalingState === "stable" &&
@@ -309,16 +368,11 @@ async function processOffer(peerId, description) {
   }
 
   try {
-    // اگر offer هم‌زمان دریافت شده باشد، اتصال قبلی را
-    // به حالت پایدار برمی‌گردانیم.
     if (pc.signalingState === "have-local-offer") {
       await pc.setLocalDescription({ type: "rollback" });
     }
 
-    await pc.setRemoteDescription(
-      new RTCSessionDescription(description)
-    );
-
+    await pc.setRemoteDescription(description);
     await addPendingCandidates(peerId, pc);
 
     const answer = await pc.createAnswer();
@@ -330,7 +384,7 @@ async function processOffer(peerId, description) {
     });
   } catch (error) {
     console.error("پردازش offer ناموفق بود:", error);
-    setStatus("برقراری اتصال صوتی ناموفق بود؛ کنسول را بررسی کن.");
+    setStatus("ساخت اتصال صوتی ناموفق بود.");
   }
 }
 
@@ -355,7 +409,6 @@ function removePeer(peerId) {
 
   pendingCandidates.delete(peerId);
   pendingOffers.delete(peerId);
-  participantNames.delete(peerId);
 
   const audio = remoteAudioElements.get(peerId);
 
@@ -367,6 +420,7 @@ function removePeer(peerId) {
   }
 }
 
+// اتصال به سرور
 socket.on("connect", () => {
   console.log("Socket connected:", socket.id);
 });
@@ -376,31 +430,49 @@ socket.on("connect_error", (error) => {
   setStatus("اتصال به سرور برقرار نشد.");
 });
 
+// ورود موفق
 socket.on("join-success", async (data) => {
   joined = true;
-  showApp(true);
 
-  if (data?.message) addMessage(data.message);
+  showMeeting();
+
+  if (localName) {
+    localName.textContent = data?.name || currentName;
+  }
+
+  if (roomLabel) {
+    roomLabel.textContent = data?.roomLabel || "اتاق گفت‌وگو";
+  }
+
+  setStatus("در حال آماده‌سازی میکروفون...");
 
   try {
     await startMicrophone();
-    setStatus("میکروفون آماده است؛ در انتظار اتصال کاربران.");
-    socket.emit("request-participants");
+    setStatus("میکروفون آماده است؛ در انتظار اتصال صوتی...");
   } catch (error) {
-    console.error("دسترسی به میکروفون ناموفق بود:", error);
+    console.error("Microphone error:", error);
     setStatus(
-      "دسترسی به میکروفون برقرار نشد. مجوز میکروفون مرورگر را بررسی کن."
+      "ورود انجام شد، اما دسترسی به میکروفون برقرار نشد."
     );
+    showToast("مجوز میکروفون مرورگر را بررسی کن.");
   }
 });
 
-socket.on("join-error", (data) => {
-  const message = typeof data === "string"
-    ? data
-    : data?.message || "ورود به اتاق ناموفق بود.";
+socket.on("join-error", (message) => {
+  joined = false;
 
-  addMessage(message, "error");
-  setStatus(message);
+  const text = typeof message === "string"
+    ? message
+    : "ورود به اتاق ناموفق بود.";
+
+  setStatus(text);
+  showToast(text);
+
+  const submitButton = joinForm?.querySelector(
+    'button[type="submit"]'
+  );
+
+  if (submitButton) submitButton.disabled = false;
 });
 
 socket.on("participants", (participants) => {
@@ -408,11 +480,11 @@ socket.on("participants", (participants) => {
 });
 
 socket.on("system-message", (data) => {
-  const message = typeof data === "string"
+  const text = typeof data === "string"
     ? data
-    : data?.message || "";
+    : data?.text || "";
 
-  if (message) addMessage(message, "system");
+  if (text) addMessage(text, "system");
 });
 
 socket.on("chat-message", (data) => {
@@ -421,59 +493,51 @@ socket.on("chat-message", (data) => {
     return;
   }
 
-  const name = data?.username || data?.name || "کاربر";
-  const message = data?.message || data?.text || "";
+  const text = data?.text || "";
+  const name = data?.name || "کاربر";
 
-  if (message) addMessage(`${name}: ${message}`, "chat");
+  if (text) addMessage(text, "chat", name);
 });
 
+// دریافت پیشنهاد اتصال
 socket.on("webrtc-offer", async (data) => {
-  const peerId = data?.fromId;
-  const description = data?.description;
+  if (!data?.fromId || !data?.description) return;
 
-  if (!peerId || !description) return;
-
-  await processOffer(peerId, description);
+  await processOffer(data.fromId, data.description);
 });
 
+// دریافت پاسخ اتصال
 socket.on("webrtc-answer", async (data) => {
-  const peerId = data?.fromId;
-  const description = data?.description;
+  if (!data?.fromId || !data?.description) return;
 
-  if (!peerId || !description) return;
-
-  const pc = peerConnections.get(peerId);
+  const pc = peerConnections.get(data.fromId);
 
   if (!pc) {
-    console.warn("Answer received without peer connection:", peerId);
+    console.warn("Answer بدون peer connection دریافت شد.");
     return;
   }
 
   try {
     if (pc.signalingState !== "have-local-offer") {
       console.warn(
-        "Answer received in unexpected state:",
+        "وضعیت غیرمنتظره هنگام دریافت answer:",
         pc.signalingState
       );
       return;
     }
 
-    await pc.setRemoteDescription(
-      new RTCSessionDescription(description)
-    );
-
-    await addPendingCandidates(peerId, pc);
+    await pc.setRemoteDescription(data.description);
+    await addPendingCandidates(data.fromId, pc);
   } catch (error) {
     console.error("پردازش answer ناموفق بود:", error);
   }
 });
 
+// دریافت ICE candidate
 socket.on("webrtc-ice-candidate", async (data) => {
-  const peerId = data?.fromId;
-  const candidate = data?.candidate;
+  if (!data?.fromId || !data?.candidate) return;
 
-  if (!peerId || !candidate) return;
-
+  const peerId = data.fromId;
   const pc = peerConnections.get(peerId);
 
   if (!pc || !pc.remoteDescription) {
@@ -481,94 +545,101 @@ socket.on("webrtc-ice-candidate", async (data) => {
       pendingCandidates.set(peerId, []);
     }
 
-    pendingCandidates.get(peerId).push(candidate);
+    pendingCandidates.get(peerId).push(data.candidate);
     return;
   }
 
   try {
-    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    await pc.addIceCandidate(
+      new RTCIceCandidate(data.candidate)
+    );
   } catch (error) {
     console.error("افزودن ICE candidate ناموفق بود:", error);
   }
 });
 
-socket.on("user-left", (data) => {
-  if (data?.id) removePeer(data.id);
-  if (data?.socketId) removePeer(data.socketId);
+// فرم ورود
+joinForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  if (joined) return;
+
+  currentName = usernameInput.value.trim();
+  currentRoomCode = roomCodeInput.value.trim().toUpperCase();
+
+  if (!currentName || !currentRoomCode) {
+    setStatus("نام و کد اتاق را وارد کن.");
+    return;
+  }
+
+  const submitButton = joinForm.querySelector(
+    'button[type="submit"]'
+  );
+
+  if (submitButton) submitButton.disabled = true;
+
+  setStatus("در حال بررسی کد ورود...");
+
+  // سرور دقیقاً این دو فیلد را بررسی می‌کند.
+  socket.emit("join-room", {
+    name: currentName,
+    roomCode: currentRoomCode
+  });
 });
 
-socket.on("disconnect", () => {
-  setStatus("اتصال به سرور قطع شد.");
+// فرم ارسال پیام
+chatForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  const text = messageInput.value.trim();
+
+  if (!joined || !text) return;
+
+  // سرور فعلی رشته دریافت می‌کند، نه شیء.
+  socket.emit("chat-message", text);
+
+  messageInput.value = "";
+  messageInput.focus();
 });
 
-if (joinForm) {
-  joinForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+// روشن و خاموش‌کردن میکروفون
+micButton?.addEventListener("click", () => {
+  if (!localStream) {
+    showToast("میکروفون هنوز آماده نیست.");
+    return;
+  }
 
-    if (joined) return;
+  microphoneEnabled = !microphoneEnabled;
 
-    currentUsername = usernameInput?.value.trim() || "";
-    currentRoomCode = roomInput?.value.trim() || "";
+  for (const track of localStream.getAudioTracks()) {
+    track.enabled = microphoneEnabled;
+  }
 
-    if (!currentUsername || !currentRoomCode) {
-      setStatus("نام و کد ورود را وارد کن.");
-      return;
-    }
+  updateMicButton();
 
-    try {
-      await startMicrophone();
+  setStatus(
+    microphoneEnabled
+      ? "میکروفون روشن است."
+      : "میکروفون خاموش است."
+  );
+});
 
-      socket.emit("join-room", {
-        username: currentUsername,
-        name: currentUsername,
-        roomCode: currentRoomCode,
-        roomCodeInput: currentRoomCode,
-        code: currentRoomCode
-      });
-    } catch (error) {
-      console.error("Microphone permission error:", error);
-      setStatus("ابتدا مجوز استفاده از میکروفون را فعال کن.");
-    }
+// تب‌های افراد و گفت‌وگو
+document.querySelectorAll(".tab[data-panel]").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    const panelId = tab.dataset.panel;
+
+    document.querySelectorAll(".tab[data-panel]").forEach((item) => {
+      item.classList.toggle("active", item === tab);
+    });
+
+    document.querySelectorAll(".side-panel .panel").forEach((panel) => {
+      panel.classList.toggle("hidden", panel.id !== panelId);
+    });
   });
-}
+});
 
-if (chatForm) {
-  chatForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-
-    const message = messageInput?.value.trim();
-    if (!message || !joined) return;
-
-    socket.emit("chat-message", { message, text: message });
-
-    if (messageInput) messageInput.value = "";
-  });
-}
-
-if (micButton) {
-  micButton.disabled = true;
-
-  micButton.addEventListener("click", () => {
-    if (!localStream) return;
-
-    microphoneEnabled = !microphoneEnabled;
-
-    for (const track of localStream.getAudioTracks()) {
-      track.enabled = microphoneEnabled;
-    }
-
-    micButton.textContent = microphoneEnabled
-      ? "خاموش کردن میکروفون"
-      : "روشن کردن میکروفون";
-
-    setStatus(
-      microphoneEnabled
-        ? "میکروفون روشن است."
-        : "میکروفون خاموش است."
-    );
-  });
-}
-
+// خروج از اتاق
 async function leaveRoom() {
   if (!joined) return;
 
@@ -589,19 +660,44 @@ async function leaveRoom() {
 
   pendingOffers.clear();
   pendingCandidates.clear();
-  participantNames.clear();
+  latestParticipants = [];
 
-  if (peopleContainer) peopleContainer.replaceChildren();
+  if (peopleList) peopleList.replaceChildren();
+  if (peopleListMirror) peopleListMirror.replaceChildren();
 
-  if (chatContainer) chatContainer.replaceChildren();
+  updateParticipantCounts(0);
 
-  showApp(false);
+  if (messages) {
+    messages.replaceChildren();
+
+    const welcome = document.createElement("div");
+    welcome.className = "welcome-message";
+
+    const heading = document.createElement("strong");
+    heading.textContent = "به گفت‌وگو خوش آمدی";
+
+    const paragraph = document.createElement("p");
+    paragraph.textContent =
+      "پیام‌ها برای اعضای همین اتاق ارسال می‌شوند.";
+
+    welcome.append(heading, paragraph);
+    messages.appendChild(welcome);
+  }
+
+  if (micButton) micButton.disabled = true;
+
+  const submitButton = joinForm?.querySelector(
+    'button[type="submit"]'
+  );
+
+  if (submitButton) submitButton.disabled = false;
+
+  showJoinScreen();
   setStatus("از اتاق خارج شدی.");
 }
 
-if (leaveButton) {
-  leaveButton.addEventListener("click", leaveRoom);
-}
+leaveButton?.addEventListener("click", leaveRoom);
+endButton?.addEventListener("click", leaveRoom);
 
 window.addEventListener("beforeunload", () => {
   for (const pc of peerConnections.values()) {
