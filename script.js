@@ -33,13 +33,30 @@ const endButton = $("endButton");
 const toastElement = $("toast");
 const remoteAudios = $("remoteAudios");
 
+
 const RTC_CONFIG = {
   iceServers: [
     {
-      urls: "stun:stun.l.google.com:19302"
+      urls: "stun:stun.relay.metered.ca:80"
+    },
+    {
+      urls: "turn:de.relay.metered.ca:80",
+      username: "06381c218aece6de692832e1",
+      credential: "x6YiVCGpUuvLAJva"
+    },
+    {
+      urls: "turn:de.relay.metered.ca:80?transport=tcp",
+      username: "06381c218aece6de692832e1",
+      credential: "x6YiVCGpUuvLAJva"
+    },
+    {
+      urls: "turns:de.relay.metered.ca:443?transport=tcp",
+      username: "06381c218aece6de692832e1",
+      credential: "x6YiVCGpUuvLAJva"
     }
   ]
 };
+
 
 let joined = false;
 let localStream = null;
