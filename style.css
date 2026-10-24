@@ -59,8 +59,8 @@ button {
 }
 
 .logo {
-  width: 58px;
-  height: 58px;
+  width: 100px;
+  height: 70px;
   display: grid;
   place-items: center;
   border-radius: 18px;
@@ -71,8 +71,8 @@ button {
 }
 
 .logo.small {
-  width: 42px;
-  height: 42px;
+  width: 68px;
+  height: 50px;
   border-radius: 13px;
   font-size: 23px;
   flex: 0 0 auto;
@@ -605,4 +605,68 @@ input:focus {
     flex: 1;
     min-width: 145px;
   }
+}
+
+
+/* فهرست اعضا: کوچک و کم‌جا */
+#peopleList,
+#peopleListMirror {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#peopleList .person,
+#peopleListMirror .person {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  min-height: 0;
+  border-radius: 8px;
+}
+
+#peopleList .person-avatar,
+#peopleListMirror .person-avatar {
+  width: 27px;
+  height: 27px;
+  min-width: 27px;
+  font-size: 12px;
+}
+
+#peopleList .person-info,
+#peopleListMirror .person-info {
+  min-width: 0;
+  line-height: 1.3;
+}
+
+#peopleList .person-name,
+#peopleListMirror .person-name {
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+#peopleList .person-status,
+#peopleListMirror .person-status {
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+
+/* مخفی کردن فهرست اعضا در بخش اصلی جلسه */
+.meeting > .people-list {
+  display: none !important;
+}
+
+/* نمایش فهرست اعضا فقط داخل پنل افراد */
+.side-panel .people-list {
+  display: flex;
+}
+
+
+/* مخفی کردن فهرست اعضا از بخش اصلی جلسه */
+#audio-status-card #peopleList,
+.audio-status-card #peopleList {
+  display: none !important;
 }
