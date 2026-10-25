@@ -670,3 +670,48 @@ input:focus {
 .audio-status-card #peopleList {
   display: none !important;
 }
+
+.back-home {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  color: #f3f1ff;
+  text-decoration: none;
+  font-family: "Vazirmatn", Tahoma, sans-serif;
+  font-size: 13px;
+  background: rgba(124, 92, 255, 0.12);
+  border: 1px solid rgba(124, 92, 255, 0.4);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  transition: 0.25s ease;
+}
+
+.back-home:hover {
+  background: rgba(124, 92, 255, 0.25);
+  border-color: #35d6ff;
+  transform: translateX(3px);
+}
+
+.back-home .arrow {
+  font-size: 17px;
+  color: #35d6ff;
+  transition: transform 0.25s ease;
+}
+
+.back-home:hover .arrow {
+  transform: translateX(3px);
+}
+
+@media (max-width: 600px) {
+  .back-home {
+    top: 12px;
+    right: 12px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
